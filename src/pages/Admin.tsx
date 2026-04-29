@@ -68,6 +68,10 @@ export default function Admin() {
   // Local state for editing content
   const [editedContent, setEditedContent] = useState(content);
 
+  useEffect(() => {
+    setEditedContent(content);
+  }, [content]);
+
   const [isAddingNews, setIsAddingNews] = useState(false);
   const [newNewsTitle, setNewNewsTitle] = useState('');
   const [newNewsContent, setNewNewsContent] = useState('');
@@ -155,7 +159,11 @@ export default function Admin() {
   const handleAddGalleryImageSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newGalleryImage) {
-      setEditedContent(prev => ({ ...prev, gallery: [newGalleryImage, ...prev.gallery] }));
+      setEditedContent(prev => {
+        const updated = { ...prev, gallery: [newGalleryImage, ...prev.gallery] };
+        updateContent(updated);
+        return updated;
+      });
       setNewGalleryImage('');
       setIsAddingGalleryImage(false);
     }
@@ -163,7 +171,11 @@ export default function Admin() {
 
   const removeGalleryImage = (index: number) => {
     if (confirm('Are you sure you want to remove this image?')) {
-      setEditedContent(prev => ({ ...prev, gallery: prev.gallery.filter((_, i) => i !== index) }));
+      setEditedContent(prev => {
+        const updated = { ...prev, gallery: prev.gallery.filter((_, i) => i !== index) };
+        updateContent(updated);
+        return updated;
+      });
     }
   };
 
@@ -179,7 +191,12 @@ export default function Admin() {
       image: newNewsImage || undefined
     };
 
-    setEditedContent(prev => ({ ...prev, news: [newNews, ...prev.news] }));
+    setEditedContent(prev => {
+      const updated = { ...prev, news: [newNews, ...prev.news] };
+      updateContent(updated);
+      return updated;
+    });
+    
     setIsAddingNews(false);
     setNewNewsTitle('');
     setNewNewsContent('');
@@ -188,7 +205,11 @@ export default function Admin() {
 
   const removeNews = (id: string) => {
     if (confirm('Are you sure you want to delete this news item?')) {
-      setEditedContent(prev => ({ ...prev, news: prev.news.filter(n => n.id !== id) }));
+      setEditedContent(prev => {
+        const updated = { ...prev, news: prev.news.filter(n => n.id !== id) };
+        updateContent(updated);
+        return updated;
+      });
     }
   };
 

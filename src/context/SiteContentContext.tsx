@@ -179,10 +179,12 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   const updateContent = async (newContent: SiteContent) => {
     setContent(newContent); // Optimistic update
     try {
-      await setDoc(doc(db, 'settings', 'siteContent'), newContent);
+      // JSON.parse/stringify removes any undefined properties which Firestore will reject
+      const sanitizedContent = JSON.parse(JSON.stringify(newContent));
+      await setDoc(doc(db, 'settings', 'siteContent'), sanitizedContent);
     } catch (e) {
       console.error("Failed to update content:", e);
-      alert("Failed to update site content on the server.");
+      alert("Failed to update site content on the server: " + (e as Error).message);
     }
   };
 

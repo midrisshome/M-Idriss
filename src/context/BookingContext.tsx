@@ -61,7 +61,8 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     };
 
     try {
-      await setDoc(doc(db, 'bookings', orderId), newBooking);
+      const sanitizedBooking = JSON.parse(JSON.stringify(newBooking));
+      await setDoc(doc(db, 'bookings', orderId), sanitizedBooking);
       return orderId;
     } catch (e) {
       console.error("Error adding booking:", e);
