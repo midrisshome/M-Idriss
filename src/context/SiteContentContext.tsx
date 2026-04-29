@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 export interface ServiceItem {
   id: number;
@@ -136,17 +138,21 @@ const defaultContent: SiteContent = {
 interface SiteContentContextType {
   content: SiteContent;
   updateContent: (newContent: SiteContent) => void;
+  loading: boolean;
 }
 
 const SiteContentContext = createContext<SiteContentContextType | undefined>(undefined);
 
 export function SiteContentProvider({ children }: { children: ReactNode }) {
-  const [content, setContent] = useState<SiteContent>(() => {
-    const saved = localStorage.getItem('disco_best_content');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return {
+  const [content, setContent] = useState<SiteContent>(defaultContent);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const contentRef = doc(db, 'settings', 'siteContent');
+    const unsubscribe = onSnapshot(contentRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const parsed = docSnap.data() as Partial<SiteContent>;
+        setContent({
           ...defaultContent,
           ...parsed,
           home: { ...defaultContent.home, ...(parsed.home || {}) },
@@ -155,24 +161,33 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
           services: parsed.services || defaultContent.services,
           gallery: parsed.gallery || defaultContent.gallery,
           news: parsed.news || defaultContent.news,
-        };
-      } catch (e) {
-        return defaultContent;
+        });
+      } else {
+        // Init if missing
+        setDoc(contentRef, defaultContent).catch(console.error);
+        setContent(defaultContent);
       }
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching site content from Firestore", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const updateContent = async (newContent: SiteContent) => {
+    setContent(newContent); // Optimistic update
+    try {
+      await setDoc(doc(db, 'settings', 'siteContent'), newContent);
+    } catch (e) {
+      console.error("Failed to update content:", e);
+      alert("Failed to update site content on the server.");
     }
-    return defaultContent;
-  });
-
-  useEffect(() => {
-    localStorage.setItem('disco_best_content', JSON.stringify(content));
-  }, [content]);
-
-  const updateContent = (newContent: SiteContent) => {
-    setContent(newContent);
   };
 
   return (
-    <SiteContentContext.Provider value={{ content, updateContent }}>
+    <SiteContentContext.Provider value={{ content, updateContent, loading }}>
       {children}
     </SiteContentContext.Provider>
   );

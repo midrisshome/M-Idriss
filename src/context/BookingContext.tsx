@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 export type EventType = 'Wedding' | 'Party' | 'Church Event' | 'Corporate' | 'Outdoor Concert' | 'Other';
 
@@ -17,49 +19,76 @@ export interface Booking {
 
 interface BookingContextType {
   bookings: Booking[];
-  addBooking: (booking: Omit<Booking, 'id' | 'createdAt' | 'status'>) => string;
-  updateBookingStatus: (id: string, status: Booking['status']) => void;
-  deleteBooking: (id: string) => void;
+  addBooking: (booking: Omit<Booking, 'id' | 'createdAt' | 'status'>) => Promise<string>;
+  updateBookingStatus: (id: string, status: Booking['status']) => Promise<void>;
+  deleteBooking: (id: string) => Promise<void>;
+  loading: boolean;
 }
 
 const BookingContext = createContext<BookingContextType | undefined>(undefined);
 
 export function BookingProvider({ children }: { children: ReactNode }) {
-  const [bookings, setBookings] = useState<Booking[]>(() => {
-    const saved = localStorage.getItem('disco_best_bookings');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    localStorage.setItem('disco_best_bookings', JSON.stringify(bookings));
-  }, [bookings]);
+    const q = query(collection(db, 'bookings'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const bookingsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Booking[];
+      setBookings(bookingsData);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching bookings:", error);
+      setLoading(false);
+    });
 
-  const addBooking = (bookingData: Omit<Booking, 'id' | 'createdAt' | 'status'>) => {
+    return () => unsubscribe();
+  }, []);
+
+  const addBooking = async (bookingData: Omit<Booking, 'id' | 'createdAt' | 'status'>) => {
     const dateStr = new Date().getFullYear();
     const count = bookings.length + 1;
     const orderId = `DB-${dateStr}-${count.toString().padStart(3, '0')}`;
     
     const newBooking: Booking = {
       ...bookingData,
-      id: orderId,
+      id: orderId, // using orderId as document id might be ok, or we can use auto ID
       createdAt: new Date().toISOString(),
       status: 'Pending'
     };
 
-    setBookings(prev => [newBooking, ...prev]);
-    return orderId;
+    try {
+      await setDoc(doc(db, 'bookings', orderId), newBooking);
+      return orderId;
+    } catch (e) {
+      console.error("Error adding booking:", e);
+      throw e;
+    }
   };
 
-  const updateBookingStatus = (id: string, status: Booking['status']) => {
-    setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
+  const updateBookingStatus = async (id: string, status: Booking['status']) => {
+    try {
+      await updateDoc(doc(db, 'bookings', id), { status });
+    } catch (e) {
+      console.error("Error updating booking status:", e);
+      throw e;
+    }
   };
 
-  const deleteBooking = (id: string) => {
-    setBookings(prev => prev.filter(b => b.id !== id));
+  const deleteBooking = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'bookings', id));
+    } catch (e) {
+      console.error("Error deleting booking:", e);
+      throw e;
+    }
   };
 
   return (
-    <BookingContext.Provider value={{ bookings, addBooking, updateBookingStatus, deleteBooking }}>
+    <BookingContext.Provider value={{ bookings, addBooking, updateBookingStatus, deleteBooking, loading }}>
       {children}
     </BookingContext.Provider>
   );
