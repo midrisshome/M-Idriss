@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import { BookingProvider } from './context/BookingContext';
 import { SiteContentProvider } from './context/SiteContentContext';
 import { Navbar } from './components/layout/Navbar';
@@ -19,7 +19,7 @@ export default function App() {
   return (
     <SiteContentProvider>
       <BookingProvider>
-        <BrowserRouter>
+        <HashRouter>
           <div className="flex flex-col min-h-screen">
             <Navbar />
             <main className="flex-grow pt-16">
@@ -37,7 +37,7 @@ export default function App() {
             <Footer />
             <FloatingWhatsApp />
           </div>
-        </BrowserRouter>
+        </HashRouter>
       </BookingProvider>
     </SiteContentProvider>
   );

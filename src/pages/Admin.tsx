@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useBookings } from '../context/BookingContext';
 import { Settings, Trash2, Lock, KeyRound, AlertCircle, CalendarRange, PenBox, Image as ImageIcon, Mail, ArrowLeft, CheckCircle2, X } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -44,6 +45,7 @@ const processImageFile = (file: File, callback: (dataUrl: string) => void) => {
 };
 
 export default function Admin() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { bookings, updateBookingStatus, deleteBooking } = useBookings();
   const { content, updateContent } = useSiteContent();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -75,8 +77,7 @@ export default function Admin() {
   const [newGalleryImage, setNewGalleryImage] = useState('');
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const tokenFromUrl = urlParams.get('resetToken');
+    const tokenFromUrl = searchParams.get('resetToken');
     
     if (tokenFromUrl) {
       const storedResetData = localStorage.getItem('disco_reset_token');
@@ -91,9 +92,10 @@ export default function Admin() {
       setError('The password reset link is invalid or has expired.');
       
       // Clean up URL
-      window.history.replaceState({}, document.title, window.location.pathname);
+      searchParams.delete('resetToken');
+      setSearchParams(searchParams, { replace: true });
     }
-  }, []);
+  }, [searchParams, setSearchParams]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,7 +116,8 @@ export default function Admin() {
       
       localStorage.setItem('disco_reset_token', JSON.stringify({ token, expiry }));
       
-      const resetLink = `${window.location.origin}/admin?resetToken=${token}`;
+      const baseHref = window.location.href.split('?')[0].split('#')[0];
+      const resetLink = `${baseHref}#/admin?resetToken=${token}`;
       setMockEmailLink(resetLink);
       setShowMockEmail(true);
       setError(false);
@@ -129,7 +132,9 @@ export default function Admin() {
       setAdminPassword(newPasswordInput);
       localStorage.setItem('disco_admin_password', newPasswordInput);
       localStorage.removeItem('disco_reset_token');
-      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      searchParams.delete('resetToken');
+      setSearchParams(searchParams, { replace: true });
       
       setAuthView('login');
       setSuccessMessage('Password successfully updated. Please login with your new password.');
